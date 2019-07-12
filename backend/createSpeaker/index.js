@@ -1,10 +1,16 @@
 const mongo = require("mongodb").MongoClient;
+const axios = require("axios");
+const uuid = require("uuid");
+//https://acg-eg-ryanmagor.australiasoutheast-1.eventgrid.azure.net/api/events
+
+
 
 module.exports = function(context, req) {
   context.log("createSpeaker function processing request");
   context.log("req.body", req.body);
   if (req.body) {
     let speakerData = req.body;
+    publishToEventGrid(speakerData);
     //connect to Mongo and list the items
     mongo.connect(
       process.env.speakers_COSMOSDB,
@@ -40,4 +46,28 @@ function response(client, context) {
     client.close();
     context.done();
   };
+}
+
+//Helper function to build the respond
+//Helper function to publish event to eventGrid
+function publishToEventGrid(speaker) {
+  console.log("in publishToEventGrid function");
+  const topicKey = process.env.eventGrid_TopicKey
+  const topicHostName =
+    "https://acg-eg-ryanmagor.australiasoutheast-1.eventgrid.azure.net/api/events";
+  let data = speaker;
+  let events = [
+    {
+      id: uuid(),
+      subject: "New Speaker Image Created",
+      dataVersion: "1.0",
+      eventType: "Microsoft.MockPublisher.TestEvent",
+      eventTime: new Date(),
+      data: speaker
+    }
+  ];
+  console.log("Here is the event data: ", events[0].data);
+  axios.post(topicHostName, events, {
+    headers: { "aeg-sas-key": topicKey }
+  });
 }
